@@ -58,6 +58,7 @@ def health_check():
     log_request('GET', '/health', status_code)
     
     return jsonify({"status": status, "model_loaded": model is not None}), status_code
+#http://localhost:5000/health
 
 @app.route('/predict', methods=['POST'])
 @PREDICTION_LATENCY_SECONDS.time() 
@@ -88,6 +89,7 @@ def metrics():
     """Endpoint pour exposer les métriques Prometheus."""
     log_request('GET', '/metrics', 200)
     return generate_latest(), 200
+#http://localhost:9090/metrics
 
 # Lancement du serveur :
 
