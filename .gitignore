@@ -1,0 +1,23 @@
+# Fichiers et dossiers sensibles ou personnels
+.env
+*.pem
+*.key
+aws_credentials.txt
+
+# Environnements python
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# MLflow et modèles (ignorer les résultats d'expérimentation et le modèle exporté)
+mlruns/
+api/model/*
+# Exception: conserve la structure du dossier 'model' et le .gitignore qu'il pourrait contenir
+!api/model/.gitignore 
+
+# Fichiers de Terraform/OpenTofu générés
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
