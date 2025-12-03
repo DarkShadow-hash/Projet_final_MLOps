@@ -10,5 +10,5 @@ scrape_configs:
     metrics_path: /metrics
     scrape_interval: 15s
     static_configs:
-      # C'est ici que la magie opère : on récupère l'IP du premier serveur du groupe 'api_instance'
-      - targets: ["{{ hostvars[groups['api_instance'][0]]['ansible_host'] }}:9090"]
+      # C'est ici que la magie opère : on récupère l'IP du premier serveur du groupe 'api'
+      - targets: ["{{ hostvars[groups['api'][0]]['ansible_host'] }}:9090"]

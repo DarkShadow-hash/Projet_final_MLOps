@@ -1,6 +1,6 @@
 ---
 - name: Deploy Monitoring Stack
-  hosts: monitoring_instance # Doit correspondre à l'inventaire de Malika
+  hosts: monitoring # Doit correspondre à l'inventaire de Malika
   become: yes
   roles:
     - docker      # On installe d'abord Docker

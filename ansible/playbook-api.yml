@@ -1,5 +1,5 @@
 - name: Deploy API Stack
-  hosts: api_instance # Le nom du groupe que Malika devra respecter
+  hosts: api # Le nom du groupe que Malika devra respecter
   become: yes
   roles:
     - docker # On appelle le rôle créé juste avant
