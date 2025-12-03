@@ -1,0 +1,37 @@
+---
+- name: Create monitoring configuration directory
+  file:
+    path: /opt/monitoring
+    state: directory
+    mode: '0755'
+    owner: ubuntu
+    group: docker
+
+- name: Deploy Prometheus configuration from template
+  template:
+    src: prometheus.yml.j2
+    dest: /opt/monitoring/prometheus.yml
+    mode: '0644'
+
+- name: Run Prometheus Container
+  community.docker.docker_container:
+    name: prometheus
+    image: prom/prometheus
+    state: started
+    restart_policy: always
+    ports:
+      - "9090:9090"
+    volumes:
+      - /opt/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+
+- name: Run Grafana Container
+  community.docker.docker_container:
+    name: grafana
+    image: grafana/grafana
+    state: started
+    restart_policy: always
+    ports:
+      - "3000:3000"
+    env:
+      # Tu pourras changer le mot de passe ici ou via une variable d'env plus tard
+      GF_SECURITY_ADMIN_PASSWORD: "admin"
