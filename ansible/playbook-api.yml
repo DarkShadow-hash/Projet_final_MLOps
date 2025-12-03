@@ -1,0 +1,38 @@
+- name: Deploy API Stack
+  hosts: api_instance # Le nom du groupe que Malika devra respecter
+  become: yes
+  roles:
+    - docker # On appelle le rôle créé juste avant
+
+  tasks:
+    - name: Create app directory
+      file:
+        path: /app
+        state: directory
+        owner: ubuntu
+        group: docker
+        mode: '0755'
+
+    - name: Copy API files to server
+      copy:
+        src: ../api/ # Suppose que le dossier api est à la racine du projet
+        dest: /app/
+        mode: '0755'
+
+    - name: Build API Docker image
+      community.docker.docker_image:
+        build:
+          path: /app
+        name: my-mlops-api
+        source: build
+        force_source: yes
+
+    - name: Run API Container
+      community.docker.docker_container:
+        name: api_container
+        image: my-mlops-api
+        state: started
+        restart_policy: always
+        ports:
+          - "5000:5000" # Port de l'application
+          - "9090:9090" # Port des métriques (CRITIQUE pour le monitoring)
