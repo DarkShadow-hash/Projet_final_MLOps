@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Chargement du Modèle :
-MODEL_PATH = "api/model/model_mlflow" 
+MODEL_PATH = "api/model/model" 
 model = None 
 
 try:
