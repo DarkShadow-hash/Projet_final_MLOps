@@ -149,7 +149,7 @@ resource "aws_instance" "api_instance" {
               # Installation globale (en root) pour éviter les soucis de PATH
               pip3 install -r api/requirements.txt
               pip3 install -r mlflow/requirements.txt
-              
+            
               echo "4. Entraînement du modèle (Automatisation Klara)..."
               # On génère le modèle sur place
               python3 mlflow/train.py
