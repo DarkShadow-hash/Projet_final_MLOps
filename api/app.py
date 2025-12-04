@@ -10,7 +10,7 @@ from prometheus_client import start_http_server, Counter, Histogram, generate_la
 # Configuration et logging :
 # L'API utilisera par défaut le port 5000 et les métriques seront sur 9090 pour que Karel 
 # puisse avoir accès aux métriques.
-API_PORT = int(os.environ.get("API_PORT", 5000))
+API_PORT = int(os.environ.get("API_PORT", 80))
 METRICS_PORT = 9090
 
 logging.basicConfig(level=logging.INFO)

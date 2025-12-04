@@ -1,4 +1,4 @@
-mlflow-skinny==2.16.0
-scikit-learn==1.5.2
-numpy==2.1.2
-pandas==2.2.3
+mlflow
+scikit-learn
+numpy
+pandas
