@@ -1,0 +1,10 @@
+# api/requirements.txt
+
+# Framework web avec Flask
+Flask
+gunicorn      
+mlflow        
+prometheus_client 
+pandas
+numpy
+scikit-learn  # Il faut que ma version de scikit-learn soit la même que celle de Klara !
