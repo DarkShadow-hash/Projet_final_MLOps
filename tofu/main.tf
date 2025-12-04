@@ -192,11 +192,35 @@ resource "aws_instance" "monitoring_instance" {
               systemctl enable docker
               usermod -aG docker ubuntu
 
-              echo "2. Lancement des conteneurs..."
-              # Prometheus (Port 9090)
-              docker run -d -p 9090:9090 --name prometheus prom/prometheus
+              echo "2. Configuration de Prometheus..."
+              mkdir -p /home/ubuntu/prometheus
               
-              # Grafana (Port 3000)
+              # On crée le fichier de config sur place
+              # On configure Prometheus pour scrapper l'API sur le port 9090
+              cat <<EOT > /home/ubuntu/prometheus/prometheus.yml
+              global:
+                scrape_interval: 15s
+
+              scrape_configs:
+                - job_name: 'prometheus'
+                  static_configs:
+                    - targets: ['localhost:9090']
+
+                - job_name: 'mlops-api'
+                  metrics_path: '/metrics'
+                  static_configs:
+                    - targets: ['${aws_instance.api_instance.private_ip}:9090']
+              EOT
+
+              echo "3. Lancement des conteneurs..."
+              # Prometheus (avec le fichier de config monté)
+              docker run -d \
+                -p 9090:9090 \
+                -v /home/ubuntu/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml \
+                --name prometheus \
+                prom/prometheus
+              
+              # Grafana
               docker run -d -p 3000:3000 --name grafana grafana/grafana
               
               echo "Monitoring prêt !"
