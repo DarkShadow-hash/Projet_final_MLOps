@@ -1,0 +1,20 @@
+# ansible/inventory.yml
+# Généré par Malika pour Karel
+all:
+  hosts:
+    # Instance API (IP: 51.44.6.153)
+    api_host:
+      ansible_host: 51.44.6.153
+    # Instance Monitoring (IP: 52.47.134.67)
+    monitoring_host:
+      ansible_host: 52.47.134.67
+      
+  children:
+    # Ce groupe sera ciblé par playbook-api.yml
+    api:
+      hosts:
+        api_host:
+    # Ce groupe sera ciblé par playbook-monitoring.yml
+    monitoring:
+      hosts:
+        monitoring_host:
