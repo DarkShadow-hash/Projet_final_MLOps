@@ -37,3 +37,6 @@ Le pipeline se compose de quatre phases principales :
 ## Objectif du Projet
 Automatiser l'ensemble du cycle de vie du modèle, depuis l'entraînement jusqu’au déploiement et à la supervision, en appliquant les bonnes pratiques DevOps et MLOps : automatisation, reproductibilité, infrastructure as code et observabilité.
 
+### PS: le fichier de simulation de trafic **demo_traffic.ps1** est utilisable sous windows en executant:
+   - Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+   - .\demo_traffic.ps1
