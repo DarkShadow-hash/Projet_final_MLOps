@@ -1,0 +1,7 @@
+---
+- name: Deploy Monitoring Stack
+  hosts: monitoring # Doit correspondre à l'inventaire de Malika
+  become: yes
+  roles:
+    - docker      # On installe d'abord Docker
+    - monitoring  # Ensuite on lance Prometheus/Grafana
