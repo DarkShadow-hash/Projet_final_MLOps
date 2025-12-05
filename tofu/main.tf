@@ -169,13 +169,12 @@ resource "aws_instance" "api_instance" {
 }
 
 
-# --- 5. Instance Monitoring (Docker + Grafana + Prometheus) ---
+# --- 5. Instance Monitoring (Mise à jour pour utiliser tes fichiers) ---
 resource "aws_instance" "monitoring_instance" {
   ami           = data.aws_ami.ubuntu.id
-  instance_type = "t3.micro"
-  key_name      = "myKey" 
+  instance_type = "t3.small" # Recommandé pour éviter les crashs RAM
+  key_name      = "myKey"    # Vérifie le nom de ta clé !
   
-  # On attache le SSH + le nouveau groupe Monitoring
   vpc_security_group_ids = [
     aws_security_group.allow_ssh.id,
     aws_security_group.monitoring_sg.id,
@@ -187,16 +186,25 @@ resource "aws_instance" "monitoring_instance" {
               
               echo "1. Installation de Docker..."
               apt-get update -y
-              apt-get install -y docker.io
+              apt-get install -y docker.io git
               systemctl start docker
               systemctl enable docker
               usermod -aG docker ubuntu
 
-              echo "2. Configuration de Prometheus..."
+              echo "2. Récupération de tes fichiers de config..."
+              cd /home/ubuntu
+              rm -rf monitoring_repo
+              # On clone ta branche de test pour avoir la dernière version de 'monitoring/'
+              git clone -b test-integration-totale https://github.com/DarkShadow-hash/Projet_final_MLOps.git monitoring_repo
+              
+              echo "3. Configuration de Prometheus..."
+              # On crée le dossier qui sera monté dans Docker
               mkdir -p /home/ubuntu/prometheus
               
-              # On crée le fichier de config sur place
-              # On configure Prometheus pour scrapper l'API sur le port 9090
+              # ICI C'EST LA MAGIE : On génère le fichier final.
+              # Tofu va injecter l'IP de l'API (${aws_instance.api_instance.private_ip})
+              # directement dans le fichier de configuration.
+              
               cat <<EOT > /home/ubuntu/prometheus/prometheus.yml
               global:
                 scrape_interval: 15s
@@ -209,18 +217,20 @@ resource "aws_instance" "monitoring_instance" {
                 - job_name: 'mlops-api'
                   metrics_path: '/metrics'
                   static_configs:
+                    # Tofu injecte l'IP privée de l'API ici automatiquement :
                     - targets: ['${aws_instance.api_instance.private_ip}:9090']
               EOT
 
-              echo "3. Lancement des conteneurs..."
-              # Prometheus (avec le fichier de config monté)
+              echo "4. Lancement des conteneurs..."
+              # On lance Prometheus en lui donnant le fichier qu'on vient de créer
               docker run -d \
                 -p 9090:9090 \
                 -v /home/ubuntu/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml \
                 --name prometheus \
                 prom/prometheus
               
-              # Grafana
+              # On lance Grafana
+              # (Optionnel: Si tu as exporté ton dashboard JSON dans le dossier monitoring, on peut l'injecter ici aussi)
               docker run -d -p 3000:3000 --name grafana grafana/grafana
               
               echo "Monitoring prêt !"
