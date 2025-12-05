@@ -10,16 +10,14 @@ terraform {
 }
 
 provider "aws" {
-  # Region de Paris
   region = "eu-west-3" 
 }
 
-# Recupere l'ID du VPC par defaut
+# --- DONNÉES ---
 data "aws_vpc" "default" {
   default = true
 }
 
-# Recupere la derniere AMI Ubuntu 22.04 LTS
 data "aws_ami" "ubuntu" {
   most_recent = true
   owners      = ["099720109477"] 
@@ -35,14 +33,16 @@ data "aws_ami" "ubuntu" {
   }
 }
 
-# --- 1. Groupe de Securite SSH (Commun) ---
+# --- SÉCURITÉ ---
+
+# 1. SSH (Port 22)
 resource "aws_security_group" "allow_ssh" {
   name_prefix = "allow_ssh"
-  description = "Autorise le trafic SSH entrant"
+  description = "Allow SSH inbound traffic"
   vpc_id      = data.aws_vpc.default.id
   
   ingress {
-    description = "Trafic SSH"
+    description = "SSH"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
@@ -57,14 +57,14 @@ resource "aws_security_group" "allow_ssh" {
   }
 }
 
-# --- 2. Groupe de Securite API (Port 80 et 9090) ---
+# 2. API (Ports 80 et 9090)
 resource "aws_security_group" "api_sg" {
   name_prefix = "api_sg"
-  description = "Autorise HTTP (API) et Metrics"
+  description = "Allow API HTTP and Prometheus Metrics"
   vpc_id      = data.aws_vpc.default.id
   
   ingress {
-    description = "Trafic HTTP/API"
+    description = "HTTP API"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
@@ -72,7 +72,7 @@ resource "aws_security_group" "api_sg" {
   }
   
   ingress {
-    description = "Metriques Prometheus"
+    description = "Metrics Prometheus"
     from_port   = 9090
     to_port     = 9090
     protocol    = "tcp"
@@ -87,22 +87,22 @@ resource "aws_security_group" "api_sg" {
   }
 }
 
-# --- 3. NOUVEAU : Groupe de Securite Monitoring (Grafana/Prometheus) ---
+# 3. Monitoring (Ports 3000 et 9090)
 resource "aws_security_group" "monitoring_sg" {
   name_prefix = "monitoring_sg"
-  description = "Autorise Grafana (3000) et Prometheus (9090)"
+  description = "Allow Grafana and Prometheus"
   vpc_id      = data.aws_vpc.default.id
 
-  # Grafana Dashboard
   ingress {
+    description = "Grafana"
     from_port   = 3000
     to_port     = 3000
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Prometheus Interface
   ingress {
+    description = "Prometheus UI"
     from_port   = 9090
     to_port     = 9090
     protocol    = "tcp"
@@ -117,11 +117,13 @@ resource "aws_security_group" "monitoring_sg" {
   }
 }
 
-# --- 4. Instance API (Tout automatisé : Git + Train + Run) ---
+# --- INSTANCES ---
+
+# 4. Instance API
 resource "aws_instance" "api_instance" {
   ami           = data.aws_ami.ubuntu.id
   instance_type = "t3.micro"
-  key_name      = "myKey" 
+  key_name      = "myKey"     
 
   vpc_security_group_ids = [
     aws_security_group.allow_ssh.id,
@@ -130,36 +132,34 @@ resource "aws_instance" "api_instance" {
 
   user_data = <<-EOF
               #!/bin/bash
-              # Log de l'installation dans /var/log/install_script.log
               exec > >(tee /var/log/install_script.log|logger -t user-data -s 2>/dev/console) 2>&1
 
-              echo "1. Installation des outils système..."
+              echo "1. Installation des outils..."
               apt-get update -y
               apt-get install -y git python3-pip python3-venv
 
-              echo "2. Récupération du code (Branche Test)..."
+              echo "2. Clonage du repo..."
               cd /home/ubuntu
               rm -rf app_repo
-              # On clone TA branche spécifique pour avoir les modifs
               git clone -b test-integration-totale https://github.com/DarkShadow-hash/Projet_final_MLOps.git app_repo
               chown -R ubuntu:ubuntu /home/ubuntu/app_repo
               
-              echo "3. Installation des librairies Python..."
+              echo "3. Installation dépendances Python..."
               cd /home/ubuntu/app_repo
-              # Installation globale (en root) pour éviter les soucis de PATH
+              # Installation en root pour que le service fonctionne
               pip3 install -r api/requirements.txt
               pip3 install -r mlflow/requirements.txt
-            
-              echo "4. Entraînement du modèle (Automatisation Klara)..."
-              # On génère le modèle sur place
+              pip3 install pandas flask gunicorn prometheus-client scikit-learn mlflow
+
+              echo "4. Entraînement du modèle..."
               python3 mlflow/train.py
               python3 mlflow/select_best.py
 
-              echo "5. Lancement de l'API (Automatisation Hélène)..."
-              # On lance sur le port 80 (root nécessaire, ça tombe bien user_data EST root)
+              echo "5. Lancement API..."
+              # Lancement sur le port 80 (nécessite root)
               nohup python3 api/app.py > api_log.txt 2>&1 &
               
-              echo "Installation terminée avec succès !"
+              echo "Installation terminée !"
               EOF
 
   tags = {
@@ -168,12 +168,11 @@ resource "aws_instance" "api_instance" {
   }
 }
 
-
-# --- 5. Instance Monitoring (Mise à jour pour utiliser tes fichiers) ---
+# 5. Instance Monitoring (Correction du chemin JSON ici)
 resource "aws_instance" "monitoring_instance" {
   ami           = data.aws_ami.ubuntu.id
-  instance_type = "t3.small" # Recommandé pour éviter les crashs RAM
-  key_name      = "myKey"    # Vérifie le nom de ta clé !
+  instance_type = "t3.micro"
+  key_name      = "myKey"
   
   vpc_security_group_ids = [
     aws_security_group.allow_ssh.id,
@@ -184,54 +183,64 @@ resource "aws_instance" "monitoring_instance" {
               #!/bin/bash
               exec > >(tee /var/log/install_monitoring.log|logger -t user-data -s 2>/dev/console) 2>&1
               
-              echo "1. Installation de Docker..."
-              apt-get update -y
-              apt-get install -y docker.io git
-              systemctl start docker
-              systemctl enable docker
+              echo "1. Installation Docker..."
+              apt-get update -y && apt-get install -y docker.io git
+              systemctl start docker && systemctl enable docker
               usermod -aG docker ubuntu
 
-              echo "2. Récupération de tes fichiers de config..."
+              echo "2. Récupération du repo..."
               cd /home/ubuntu
               rm -rf monitoring_repo
-              # On clone ta branche de test pour avoir la dernière version de 'monitoring/'
               git clone -b test-integration-totale https://github.com/DarkShadow-hash/Projet_final_MLOps.git monitoring_repo
-              
-              echo "3. Configuration de Prometheus..."
-              # On crée le dossier qui sera monté dans Docker
+
+              echo "3. Préparation Grafana..."
+              mkdir -p /home/ubuntu/grafana/dashboards
+              mkdir -p /home/ubuntu/grafana/provisioning/dashboards
+
+              # On utilise le chemin exact que tu as trouvé avec 'ls'
+              cp /home/ubuntu/monitoring_repo/monitoring/graphana/Dashboard/dashboard1.json /home/ubuntu/grafana/dashboards/mlops.json
+
+              # Configuration du provisioning
+              cat <<EOT > /home/ubuntu/grafana/provisioning/dashboards/main.yaml
+              apiVersion: 1
+              providers:
+                - name: 'MLOps'
+                  orgId: 1
+                  folder: ''
+                  type: file
+                  disableDeletion: false
+                  updateIntervalSeconds: 10
+                  options:
+                    path: /var/lib/grafana/dashboards
+              EOT
+
+              echo "4. Config Prometheus..."
               mkdir -p /home/ubuntu/prometheus
-              
-              # ICI C'EST LA MAGIE : On génère le fichier final.
-              # Tofu va injecter l'IP de l'API (${aws_instance.api_instance.private_ip})
-              # directement dans le fichier de configuration.
-              
+              # Injection de l'IP dynamique de l'API
               cat <<EOT > /home/ubuntu/prometheus/prometheus.yml
               global:
                 scrape_interval: 15s
-
               scrape_configs:
                 - job_name: 'prometheus'
                   static_configs:
                     - targets: ['localhost:9090']
-
                 - job_name: 'mlops-api'
                   metrics_path: '/metrics'
                   static_configs:
-                    # Tofu injecte l'IP privée de l'API ici automatiquement :
                     - targets: ['${aws_instance.api_instance.private_ip}:9090']
               EOT
 
-              echo "4. Lancement des conteneurs..."
-              # On lance Prometheus en lui donnant le fichier qu'on vient de créer
-              docker run -d \
-                -p 9090:9090 \
+              echo "5. Lancement des services..."
+              docker run -d -p 9090:9090 \
                 -v /home/ubuntu/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml \
                 --name prometheus \
                 prom/prometheus
               
-              # On lance Grafana
-              # (Optionnel: Si tu as exporté ton dashboard JSON dans le dossier monitoring, on peut l'injecter ici aussi)
-              docker run -d -p 3000:3000 --name grafana grafana/grafana
+              docker run -d -p 3000:3000 \
+                -v /home/ubuntu/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards \
+                -v /home/ubuntu/grafana/dashboards:/var/lib/grafana/dashboards \
+                --name grafana \
+                grafana/grafana
               
               echo "Monitoring prêt !"
               EOF
